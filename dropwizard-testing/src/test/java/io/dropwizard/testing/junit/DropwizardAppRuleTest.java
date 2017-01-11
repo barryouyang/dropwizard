@@ -6,11 +6,13 @@ import io.dropwizard.Application;
 import io.dropwizard.servlets.tasks.PostBodyTask;
 import io.dropwizard.servlets.tasks.Task;
 import io.dropwizard.setup.Environment;
+import org.glassfish.jersey.client.ClientProperties;
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
@@ -27,13 +29,21 @@ public class DropwizardAppRuleTest {
     public static final DropwizardAppRule<TestConfiguration> RULE =
             new DropwizardAppRule<>(TestApplication.class, resourceFilePath("test-config.yaml"));
 
+    private Client getClient() {
+        Client client = ClientBuilder.newClient();
+        client.property(ClientProperties.CONNECT_TIMEOUT, 1000);
+        client.property(ClientProperties.READ_TIMEOUT,    5000);
+        return client;
+    }
+
     @Test
     public void canGetExpectedResourceOverHttp() {
-        final String content = ClientBuilder.newClient().target(
+        final String content = getClient().target(
             "http://localhost:" + RULE.getLocalPort() + "/test").request().get(String.class);
 
         assertThat(content, is("Yes, it's here"));
     }
+
 
     @Test
     public void returnsConfiguration() {
@@ -56,7 +66,7 @@ public class DropwizardAppRuleTest {
     @Test
     public void canPerformAdminTask() {
         final String response
-                = ClientBuilder.newClient().target("http://localhost:"
+                = getClient().target("http://localhost:"
                         + RULE.getAdminPort() + "/tasks/hello?name=test_user")
                 .request()
                 .post(Entity.entity("", MediaType.TEXT_PLAIN), String.class);
@@ -67,7 +77,7 @@ public class DropwizardAppRuleTest {
     @Test
     public void canPerformAdminTaskWithPostBody() {
         final String response
-            = ClientBuilder.newClient().target("http://localhost:"
+            = getClient().target("http://localhost:"
             + RULE.getAdminPort() + "/tasks/echo")
             .request()
             .post(Entity.entity("Custom message", MediaType.TEXT_PLAIN), String.class);
